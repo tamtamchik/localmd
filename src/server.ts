@@ -1,4 +1,4 @@
-import { join, normalize } from "path";
+import { isAbsolute, join, relative, resolve, sep } from "path";
 
 interface FileEntry {
   path: string;
@@ -78,9 +78,17 @@ function buildTree(files: FileEntry[]): FileEntry[] {
   return root;
 }
 
-function isPathSafe(basePath: string, requestedPath: string): boolean {
-  const resolved = normalize(join(basePath, requestedPath));
-  return resolved.startsWith(normalize(basePath));
+export function isPathSafe(basePath: string, requestedPath: string): boolean {
+  const resolvedBase = resolve(basePath);
+  const resolvedPath = resolve(resolvedBase, requestedPath);
+  const relativePath = relative(resolvedBase, resolvedPath);
+
+  return (
+    relativePath !== "" &&
+    relativePath !== ".." &&
+    !relativePath.startsWith(`..${sep}`) &&
+    !isAbsolute(relativePath)
+  );
 }
 
 export function startServer(directory: string, port: number) {
