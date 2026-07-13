@@ -1,0 +1,26 @@
+{
+  "name": "localmd",
+  "version": "1.0.0",
+  "description": "Serve any folder as a local markdown editor with live preview",
+  "type": "module",
+  "bin": {
+    "localmd": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch run src/index.ts"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "local",
+    "server",
+    "preview",
+    "cli"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}
