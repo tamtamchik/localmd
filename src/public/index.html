@@ -8,7 +8,7 @@
 
   <!-- CodeMirror 5 (simpler CDN loading) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/one-dark.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/overlay.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
@@ -42,14 +42,53 @@
 
     <main class="main">
       <div class="toolbar">
-        <span class="current-file" id="current-file">Select a file to edit</span>
+        <div class="file-status">
+          <span class="current-file" id="current-file">Select a file to edit</span>
+          <span class="save-status" id="save-status" role="status" aria-live="polite">
+            <svg data-save-icon="saved" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 8.5l3 3 7-7" />
+            </svg>
+            <svg data-save-icon="unsaved" viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="3" />
+            </svg>
+            <svg data-save-icon="saving" viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="5.5" />
+            </svg>
+            <svg data-save-icon="error" viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" />
+              <path d="M8 4.5v4M8 11.5h.01" />
+            </svg>
+          </span>
+        </div>
         <div class="toolbar-actions">
-          <span class="save-status" id="save-status"></span>
+          <span class="file-history" id="file-history" hidden>
+            <span class="author-avatars" id="author-avatars"></span>
+            <span class="changed-text">Changed <time id="changed-at"></time></span>
+          </span>
+          <div class="view-switcher" role="group" aria-label="View mode">
+            <button class="view-mode-btn" data-view-mode="editor" aria-label="Markdown" title="Markdown" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 20h4l11-11-4-4L4 16v4zM13.5 6.5l4 4" />
+              </svg>
+            </button>
+            <button class="view-mode-btn active" data-view-mode="split" aria-label="Split" title="Split" aria-pressed="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="1" />
+                <path d="M12 4v16" />
+              </svg>
+            </button>
+            <button class="view-mode-btn" data-view-mode="preview" aria-label="Preview" title="Preview" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+                <circle cx="12" cy="12" r="2.5" />
+              </svg>
+            </button>
+          </div>
           <button id="save-btn" class="btn" disabled>Save</button>
         </div>
       </div>
 
-      <div class="editor-container">
+      <div class="editor-container" data-view-mode="split">
         <div class="editor-pane">
           <div id="editor"></div>
         </div>
@@ -65,6 +104,6 @@
     </main>
   </div>
 
-  <script src="/app.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
