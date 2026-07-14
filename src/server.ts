@@ -1,5 +1,6 @@
 import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "path";
+import { defaultConfig, type LocalmdConfig } from "./config";
 
 interface FileEntry {
   path: string;
@@ -8,31 +9,49 @@ interface FileEntry {
   children?: FileEntry[];
 }
 
+interface FileAuthor {
+  name: string;
+  lines: number;
+  avatarUrls: string[];
+}
+
+interface FileHistory {
+  changedAt: string;
+  authors: FileAuthor[];
+}
+
+function getAvatarUrls(email: string): string[] {
+  const normalizedEmail = email.trim().toLowerCase();
+  const githubUser = normalizedEmail.match(
+    /^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/,
+  )?.[1];
+  const hash = new Bun.CryptoHasher("md5").update(normalizedEmail).digest("hex");
+  const gravatarUrl = `https://www.gravatar.com/avatar/${hash}?d=404&s=48`;
+
+  if (githubUser) {
+    return [`https://github.com/${encodeURIComponent(githubUser)}.png?size=48`, gravatarUrl];
+  }
+
+  return [gravatarUrl];
+}
+
 async function getMarkdownFiles(dir: string): Promise<FileEntry[]> {
-  const entries: FileEntry[] = [];
+  const files: string[] = [];
   const glob = new Bun.Glob("**/*.md");
 
   for await (const path of glob.scan({ cwd: dir, onlyFiles: true })) {
-    entries.push({
-      path: path,
-      name: path.split("/").pop() || path,
-      isDirectory: false,
-    });
+    files.push(path);
   }
 
-  // Sort alphabetically
-  entries.sort((a, b) => a.path.localeCompare(b.path));
-
-  // Build tree structure
-  return buildTree(entries);
+  return buildTree(files);
 }
 
-function buildTree(files: FileEntry[]): FileEntry[] {
+function buildTree(files: string[]): FileEntry[] {
   const root: FileEntry[] = [];
   const dirs: Map<string, FileEntry> = new Map();
 
   for (const file of files) {
-    const parts = file.path.split("/");
+    const parts = file.split("/");
     let currentLevel = root;
     let currentPath = "";
 
@@ -54,7 +73,7 @@ function buildTree(files: FileEntry[]): FileEntry[] {
     }
 
     currentLevel.push({
-      path: file.path,
+      path: file,
       name: parts[parts.length - 1],
       isDirectory: false,
     });
@@ -77,6 +96,80 @@ function buildTree(files: FileEntry[]): FileEntry[] {
 
   sortLevel(root);
   return root;
+}
+
+async function getFileHistory(
+  directory: string,
+  filePath: string,
+): Promise<FileHistory | null> {
+  try {
+    const logProcess = Bun.spawn(
+      [
+        "git",
+        "-C",
+        directory,
+        "log",
+        "--no-show-signature",
+        "-1",
+        "--format=%aI",
+        "--",
+        filePath,
+      ],
+      { stdout: "pipe", stderr: "ignore" },
+    );
+    const blameProcess = Bun.spawn(
+      ["git", "-C", directory, "blame", "--line-porcelain", "--", filePath],
+      { stdout: "pipe", stderr: "ignore" },
+    );
+    const [logExitCode, logOutput, blameExitCode, blameOutput] = await Promise.all([
+      logProcess.exited,
+      new Response(logProcess.stdout).text(),
+      blameProcess.exited,
+      new Response(blameProcess.stdout).text(),
+    ]);
+
+    if (logExitCode !== 0 || blameExitCode !== 0 || !logOutput.trim()) {
+      return null;
+    }
+
+    const authors = new Map<
+      string,
+      { name: string; lines: number; latestTimestamp: number }
+    >();
+    let author = "";
+    let email = "";
+    let authorTimestamp = 0;
+
+    for (const line of blameOutput.split("\n")) {
+      if (line.startsWith("author ")) {
+        author = line.slice("author ".length);
+      } else if (line.startsWith("author-mail ")) {
+        email = line.slice("author-mail ".length).replace(/^<|>$/g, "").toLowerCase();
+      } else if (line.startsWith("author-time ")) {
+        authorTimestamp = Number(line.slice("author-time ".length));
+      } else if (line.startsWith("\t") && email !== "not.committed.yet") {
+        const existing = authors.get(email);
+        authors.set(email, {
+          name: author,
+          lines: (existing?.lines ?? 0) + 1,
+          latestTimestamp: Math.max(existing?.latestTimestamp ?? 0, authorTimestamp),
+        });
+      }
+    }
+
+    return {
+      changedAt: logOutput.trim(),
+      authors: [...authors.entries()]
+        .sort(([, a], [, b]) => a.lines - b.lines || a.latestTimestamp - b.latestTimestamp)
+        .map(([authorEmail, item]) => ({
+          name: item.name,
+          lines: item.lines,
+          avatarUrls: getAvatarUrls(authorEmail),
+        })),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function isPathSafe(basePath: string, requestedPath: string): boolean {
@@ -134,7 +227,11 @@ export async function isPathSafeOnDisk(
   }
 }
 
-export function startServer(directory: string, port: number) {
+export function startServer(
+  directory: string,
+  port: number,
+  config: LocalmdConfig = defaultConfig,
+) {
   const publicDir = join(import.meta.dir, "public");
 
   return Bun.serve({
@@ -145,7 +242,7 @@ export function startServer(directory: string, port: number) {
 
       // API routes
       if (path.startsWith("/api/")) {
-        return handleApi(req, url, directory);
+        return handleApi(req, url, directory, config);
       }
 
       // Serve static files from public directory
@@ -155,7 +252,7 @@ export function startServer(directory: string, port: number) {
       if (await staticFile.exists()) {
         return new Response(staticFile, {
           headers: {
-            "Content-Type": getContentType(filePath),
+            "Content-Type": staticFile.type,
           },
         });
       }
@@ -168,7 +265,12 @@ export function startServer(directory: string, port: number) {
   });
 }
 
-async function handleApi(req: Request, url: URL, directory: string): Promise<Response> {
+async function handleApi(
+  req: Request,
+  url: URL,
+  directory: string,
+  config: LocalmdConfig,
+): Promise<Response> {
   const path = url.pathname;
 
   // CORS headers
@@ -184,6 +286,10 @@ async function handleApi(req: Request, url: URL, directory: string): Promise<Res
   }
 
   try {
+    if (path === "/api/config" && req.method === "GET") {
+      return new Response(JSON.stringify(config), { headers });
+    }
+
     // GET /api/files - list all markdown files
     if (path === "/api/files" && req.method === "GET") {
       const files = await getMarkdownFiles(directory);
@@ -225,8 +331,11 @@ async function handleApi(req: Request, url: URL, directory: string): Promise<Res
         });
       }
 
-      const content = await file.text();
-      return new Response(JSON.stringify({ content, path: filePath }), { headers });
+      const [content, history] = await Promise.all([
+        file.text(),
+        getFileHistory(directory, filePath),
+      ]);
+      return new Response(JSON.stringify({ content, path: filePath, history }), { headers });
     }
 
     // PUT /api/file?path=... - save file content
@@ -284,21 +393,4 @@ async function handleApi(req: Request, url: URL, directory: string): Promise<Res
       headers,
     });
   }
-}
-
-function getContentType(path: string): string {
-  const ext = path.split(".").pop()?.toLowerCase();
-  const types: Record<string, string> = {
-    html: "text/html",
-    css: "text/css",
-    js: "application/javascript",
-    json: "application/json",
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    gif: "image/gif",
-    svg: "image/svg+xml",
-    ico: "image/x-icon",
-  };
-  return types[ext || ""] || "application/octet-stream";
 }

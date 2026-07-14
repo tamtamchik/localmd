@@ -38,8 +38,48 @@ The directory defaults to the current working directory. LocalMD opens a browser
 Options:
 
 ```text
--p, --port   Port to listen on (default: 3000)
+-p, --port   Port to listen on (overrides localmd.toml)
+-c, --config Path to localmd.toml
 -h, --help   Show help
+```
+
+## Configuration
+
+Add `localmd.toml` to the directory you serve. Every setting is optional; omitted
+settings keep the defaults shown below:
+
+```toml
+[server]
+port = 3000
+open_browser = true
+
+[ui]
+theme = "light" # light, dark, or system
+view = "split"  # editor, split, or preview
+
+[editor]
+autosave = true
+autosave_delay_ms = 2000
+line_numbers = true
+line_wrapping = true
+
+[preview]
+gfm = true
+breaks = true
+syntax_highlighting = true
+
+[files]
+open_readme = true
+```
+
+The `--port` CLI option takes precedence over `server.port`. A theme selected with
+the toolbar button takes precedence over `ui.theme` in that browser.
+
+To keep the config elsewhere, pass its path explicitly. Relative paths are resolved
+from the current working directory:
+
+```bash
+localmd ./docs --config ./configs/docs.toml
 ```
 
 ## Development
