@@ -1,5 +1,7 @@
 import {
+  formatAuthorLabel,
   formatRelativeTime,
+  getSaveStatusLabel,
   mapScrollPosition,
   resolveTheme,
 } from "./settings.js";
@@ -17,6 +19,7 @@ const fileTree = document.getElementById("file-tree");
 const currentFileEl = document.getElementById("current-file");
 const saveBtn = document.getElementById("save-btn");
 const saveStatus = document.getElementById("save-status");
+const saveStatusText = document.getElementById("save-status-text");
 const preview = document.getElementById("preview");
 const themeToggle = document.getElementById("theme-toggle");
 const editorContainer = document.getElementById("editor");
@@ -200,11 +203,16 @@ function createAuthorAvatar(author) {
   const image = document.createElement("img");
   const initial = document.createElement("span");
   const pendingUrls = [...author.avatarUrls];
+  const label = formatAuthorLabel(author.name, author.lines);
 
   avatar.className = "author-avatar";
-  avatar.title = `${author.name} · ${author.lines} ${author.lines === 1 ? "line" : "lines"}`;
+  avatar.title = label;
+  avatar.setAttribute("role", "img");
+  avatar.setAttribute("aria-label", label);
   image.alt = "";
+  image.setAttribute("aria-hidden", "true");
   image.hidden = true;
+  initial.setAttribute("aria-hidden", "true");
   initial.textContent = author.name.trim().charAt(0).toUpperCase();
 
   function loadNextAvatar() {
@@ -428,23 +436,17 @@ async function saveFile() {
 }
 
 function setSaveStatus(state) {
-  const labels = {
-    saved: "Saved",
-    unsaved: "Unsaved changes",
-    saving: "Saving…",
-    error: "Save failed",
-  };
-
   if (!state) {
     saveStatus.removeAttribute("data-save-state");
-    saveStatus.removeAttribute("aria-label");
     saveStatus.removeAttribute("title");
+    saveStatusText.textContent = "";
     return;
   }
 
+  const label = getSaveStatusLabel(state);
   saveStatus.setAttribute("data-save-state", state);
-  saveStatus.setAttribute("aria-label", labels[state]);
-  saveStatus.title = labels[state];
+  saveStatus.title = label;
+  saveStatusText.textContent = label;
 }
 
 function updateSaveStatus() {

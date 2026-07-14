@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  formatAuthorLabel,
   formatRelativeTime,
+  getSaveStatusLabel,
   mapScrollPosition,
   resolveTheme,
 } from "../src/public/settings.js";
@@ -33,4 +35,16 @@ test("maps scroll progress between editor and preview", () => {
 
 test("returns the start when the source cannot scroll", () => {
   expect(mapScrollPosition(0, 200, 200, 1800, 200)).toBe(0);
+});
+
+test("formats accessible author labels", () => {
+  expect(formatAuthorLabel("Ada Lovelace", 1)).toBe("Ada Lovelace · 1 line");
+  expect(formatAuthorLabel("Grace Hopper", 12)).toBe("Grace Hopper · 12 lines");
+});
+
+test("returns accessible save status text", () => {
+  expect(getSaveStatusLabel("saved")).toBe("Saved");
+  expect(getSaveStatusLabel("unsaved")).toBe("Unsaved changes");
+  expect(getSaveStatusLabel("saving")).toBe("Saving…");
+  expect(getSaveStatusLabel("error")).toBe("Save failed");
 });

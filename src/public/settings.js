@@ -46,3 +46,18 @@ export function mapScrollPosition(
   const progress = Math.min(Math.max(scrollTop / scrollable, 0), 1);
   return progress * Math.max(targetScrollHeight - targetClientHeight, 0);
 }
+
+export function formatAuthorLabel(name, lines) {
+  return `${name} · ${lines} ${lines === 1 ? "line" : "lines"}`;
+}
+
+const saveStatusLabels = {
+  saved: "Saved",
+  unsaved: "Unsaved changes",
+  saving: "Saving…",
+  error: "Save failed",
+};
+
+export function getSaveStatusLabel(state) {
+  return saveStatusLabels[state];
+}
