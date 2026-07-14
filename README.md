@@ -69,7 +69,7 @@ MIT
 
 [ico-coffee]: https://img.shields.io/badge/Buy%20Me%20A-Coffee-%236F4E37.svg?style=flat-square
 [ico-version]: https://img.shields.io/npm/v/@tamtamchik/localmd.svg?style=flat-square
-[ico-ci]: https://github.com/tamtamchik/localmd/actions/workflows/ci.yml/badge.svg
+[ico-ci]: https://img.shields.io/github/actions/workflow/status/tamtamchik/localmd/ci.yml?branch=main&style=flat-square&label=CI
 [ico-license]: https://img.shields.io/npm/l/@tamtamchik/localmd.svg?style=flat-square
 [ico-downloads]: https://img.shields.io/npm/dt/@tamtamchik/localmd.svg?style=flat-square
 
