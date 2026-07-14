@@ -1,7 +1,7 @@
 # localmd
 
-[![Latest Version on NPM][ico-version]][link-npm]
 [![Requires Bun][ico-bun]][link-bun]
+[![Latest Version on NPM][ico-version]][link-npm]
 [![CI][ico-ci]][link-ci]
 [![Software License][ico-license]](LICENSE)
 [![Total Downloads][ico-downloads]][link-downloads]
@@ -69,8 +69,8 @@ MIT
 [![Buy Me A Coffee][ico-coffee]][link-coffee]
 
 [ico-coffee]: https://img.shields.io/badge/Buy%20Me%20A-Coffee-%236F4E37.svg?style=flat-square
-[ico-version]: https://img.shields.io/npm/v/@tamtamchik/localmd.svg?style=flat-square
-[ico-bun]: https://img.shields.io/badge/requires-Bun%201.3%2B-fbf0df.svg?style=flat-square&logo=bun&logoColor=black
+[ico-version]: https://img.shields.io/npm/v/@tamtamchik/localmd.svg?style=flat-square&label=version
+[ico-bun]: https://img.shields.io/badge/requires-Bun%201.3%2B-fbf0df.svg?style=flat-square&logo=bun&logoColor=white
 [ico-ci]: https://img.shields.io/github/actions/workflow/status/tamtamchik/localmd/ci.yml?branch=main&style=flat-square&label=CI
 [ico-license]: https://img.shields.io/npm/l/@tamtamchik/localmd.svg?style=flat-square
 [ico-downloads]: https://img.shields.io/npm/dt/@tamtamchik/localmd.svg?style=flat-square
