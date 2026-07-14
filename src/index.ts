@@ -74,14 +74,38 @@ console.log(`
   Press Ctrl+C to stop
 `);
 
-startServer(directory, port);
+const server = startServer(directory, port);
+
+let stopping = false;
+const stopServer = async () => {
+  if (stopping) {
+    return;
+  }
+
+  stopping = true;
+  console.log("\nStopping LocalMD...");
+  await server.stop(true);
+  console.log("LocalMD stopped.");
+};
+
+process.once("SIGINT", stopServer);
+process.once("SIGTERM", stopServer);
 
 // Open browser
+const url = `http://localhost:${port}`;
 const openCommand =
   process.platform === "darwin"
-    ? "open"
+    ? ["open", url]
     : process.platform === "win32"
-      ? "start"
-      : "xdg-open";
+      ? ["cmd", "/c", "start", "", url]
+      : ["xdg-open", url];
 
-Bun.$`${openCommand} http://localhost:${port}`.quiet();
+try {
+  const browser = Bun.spawn(openCommand, {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  browser.unref();
+} catch {
+  // Opening the browser is best-effort; the server remains available at the printed URL.
+}

@@ -137,7 +137,7 @@ export async function isPathSafeOnDisk(
 export function startServer(directory: string, port: number) {
   const publicDir = join(import.meta.dir, "public");
 
-  Bun.serve({
+  return Bun.serve({
     port,
     async fetch(req) {
       const url = new URL(req.url);
