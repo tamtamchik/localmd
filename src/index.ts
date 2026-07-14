@@ -92,11 +92,20 @@ process.once("SIGINT", stopServer);
 process.once("SIGTERM", stopServer);
 
 // Open browser
+const url = `http://localhost:${port}`;
 const openCommand =
   process.platform === "darwin"
-    ? "open"
+    ? ["open", url]
     : process.platform === "win32"
-      ? "start"
-      : "xdg-open";
+      ? ["cmd", "/c", "start", "", url]
+      : ["xdg-open", url];
 
-Bun.$`${openCommand} http://localhost:${port}`.quiet();
+try {
+  const browser = Bun.spawn(openCommand, {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  browser.unref();
+} catch {
+  // Opening the browser is best-effort; the server remains available at the printed URL.
+}
