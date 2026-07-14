@@ -7,7 +7,7 @@ A Bun-powered local Markdown editor with live preview and automatic saving.
 Run it without installing:
 
 ```bash
-bunx --bun localmd [directory]
+bunx --bun @tamtamchik/localmd [directory]
 ```
 
 The directory defaults to the current working directory. LocalMD opens a browser at
@@ -23,7 +23,7 @@ Options:
 To install the command globally:
 
 ```bash
-bun add --global localmd
+bun add --global @tamtamchik/localmd
 localmd ./docs
 ```
 
