@@ -1,6 +1,5 @@
 # localmd
 
-[![Buy Me A Coffee][ico-coffee]][link-coffee]
 [![Latest Version on NPM][ico-version]][link-npm]
 [![CI][ico-ci]][link-ci]
 [![Software License][ico-license]](LICENSE)
@@ -65,6 +64,8 @@ what you would like to change.
 ## License
 
 MIT
+
+[![Buy Me A Coffee][ico-coffee]][link-coffee]
 
 [ico-coffee]: https://img.shields.io/badge/Buy%20Me%20A-Coffee-%236F4E37.svg?style=flat-square
 [ico-version]: https://img.shields.io/npm/v/@tamtamchik/localmd.svg?style=flat-square
