@@ -1,13 +1,34 @@
 # localmd
 
+[![Latest Version on NPM][ico-version]][link-npm]
+[![CI][ico-ci]][link-ci]
+[![Software License][ico-license]](LICENSE)
+[![Total Downloads][ico-downloads]][link-downloads]
+
 A Bun-powered local Markdown editor with live preview and automatic saving.
+
+## Installation
+
+Install the command globally:
+
+```bash
+bun add --global @tamtamchik/localmd
+```
+
+LocalMD requires Bun 1.3 or newer.
 
 ## Usage
 
 Run it without installing:
 
 ```bash
-bunx --bun localmd [directory]
+bunx --bun @tamtamchik/localmd [directory]
+```
+
+Or use the globally installed command:
+
+```bash
+localmd [directory]
 ```
 
 The directory defaults to the current working directory. LocalMD opens a browser at
@@ -19,15 +40,6 @@ Options:
 -p, --port   Port to listen on (default: 3000)
 -h, --help   Show help
 ```
-
-To install the command globally:
-
-```bash
-bun add --global localmd
-localmd ./docs
-```
-
-LocalMD requires Bun 1.3 or newer.
 
 ## Development
 
@@ -44,6 +56,24 @@ Start the development server:
 bun run dev
 ```
 
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss
+what you would like to change.
+
 ## License
 
 MIT
+
+[![Buy Me A Coffee][ico-coffee]][link-coffee]
+
+[ico-coffee]: https://img.shields.io/badge/Buy%20Me%20A-Coffee-%236F4E37.svg?style=flat-square
+[ico-version]: https://img.shields.io/npm/v/@tamtamchik/localmd.svg?style=flat-square
+[ico-ci]: https://github.com/tamtamchik/localmd/actions/workflows/ci.yml/badge.svg
+[ico-license]: https://img.shields.io/npm/l/@tamtamchik/localmd.svg?style=flat-square
+[ico-downloads]: https://img.shields.io/npm/dt/@tamtamchik/localmd.svg?style=flat-square
+
+[link-coffee]: https://www.buymeacoffee.com/tamtamchik
+[link-npm]: https://www.npmjs.com/package/@tamtamchik/localmd
+[link-ci]: https://github.com/tamtamchik/localmd/actions/workflows/ci.yml
+[link-downloads]: https://www.npmjs.com/package/@tamtamchik/localmd

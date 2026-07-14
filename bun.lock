@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "localmd",
+      "name": "@tamtamchik/localmd",
       "devDependencies": {
         "@types/bun": "latest",
         "typescript": "7.0.2",

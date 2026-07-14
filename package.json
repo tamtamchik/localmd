@@ -1,5 +1,5 @@
 {
-  "name": "localmd",
+  "name": "@tamtamchik/localmd",
   "version": "1.0.0",
   "description": "Serve any folder as a local markdown editor with live preview",
   "type": "module",
