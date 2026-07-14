@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { parseArgs } from "util";
-import { existsSync } from "fs";
+import { stat } from "fs/promises";
 import { resolve } from "path";
 import { startServer } from "./server";
 
@@ -47,15 +47,21 @@ Examples:
 const directory = resolve(positionals[0] || ".");
 const port = parseInt(values.port!, 10);
 
-if (!existsSync(directory)) {
-  console.error(`Error: Directory "${directory}" does not exist`);
-  process.exit(1);
-}
-
 try {
-  await Bun.$`test -d ${directory}`.quiet();
-} catch {
-  console.error(`Error: "${directory}" is not a directory`);
+  const info = await stat(directory);
+  if (!info.isDirectory()) {
+    throw new Error("Not a directory");
+  }
+} catch (error) {
+  const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+
+  if (code === "ENOENT") {
+    console.error(`Error: Directory "${directory}" does not exist`);
+  } else if (code === "EACCES" || code === "EPERM") {
+    console.error(`Error: Cannot access directory "${directory}"`);
+  } else {
+    console.error(`Error: "${directory}" is not a directory`);
+  }
   process.exit(1);
 }
 
