@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isPathSafe } from "../src/server";
+import { isPathSafe, isPathSafeOnDisk } from "../src/server";
 
 describe("isPathSafe", () => {
   const basePath = join(tmpdir(), "notes");
@@ -22,5 +23,26 @@ describe("isPathSafe", () => {
     expect(isPathSafe(basePath, "")).toBe(false);
     expect(isPathSafe(basePath, ".")).toBe(false);
     expect(isPathSafe(basePath, basePath)).toBe(false);
+  });
+});
+
+describe("isPathSafeOnDisk", () => {
+  test("rejects paths that escape through a symlink", async () => {
+    const tempDirectory = await mkdtemp(join(tmpdir(), "localmd-"));
+    const basePath = join(tempDirectory, "notes");
+    const outsidePath = join(tempDirectory, "outside");
+
+    try {
+      await mkdir(basePath);
+      await mkdir(outsidePath);
+      await Bun.write(join(outsidePath, "secret.md"), "secret");
+      await symlink(outsidePath, join(basePath, "linked"), "junction");
+
+      expect(await isPathSafeOnDisk(basePath, "linked/secret.md")).toBe(false);
+      expect(await isPathSafeOnDisk(basePath, "linked/new.md")).toBe(false);
+      expect(await isPathSafeOnDisk(basePath, "new.md")).toBe(true);
+    } finally {
+      await rm(tempDirectory, { recursive: true, force: true });
+    }
   });
 });

@@ -1,4 +1,5 @@
-import { isAbsolute, join, relative, resolve, sep } from "path";
+import { realpath } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "path";
 
 interface FileEntry {
   path: string;
@@ -81,14 +82,56 @@ function buildTree(files: FileEntry[]): FileEntry[] {
 export function isPathSafe(basePath: string, requestedPath: string): boolean {
   const resolvedBase = resolve(basePath);
   const resolvedPath = resolve(resolvedBase, requestedPath);
+
+  return isResolvedPathSafe(resolvedBase, resolvedPath);
+}
+
+function isResolvedPathSafe(
+  resolvedBase: string,
+  resolvedPath: string,
+  allowBase = false,
+): boolean {
   const relativePath = relative(resolvedBase, resolvedPath);
 
   return (
-    relativePath !== "" &&
+    (allowBase || relativePath !== "") &&
     relativePath !== ".." &&
     !relativePath.startsWith(`..${sep}`) &&
     !isAbsolute(relativePath)
   );
+}
+
+export async function isPathSafeOnDisk(
+  basePath: string,
+  requestedPath: string,
+): Promise<boolean> {
+  if (!isPathSafe(basePath, requestedPath)) {
+    return false;
+  }
+
+  try {
+    const resolvedBase = await realpath(basePath);
+    const requestedFullPath = resolve(basePath, requestedPath);
+
+    try {
+      const resolvedPath = await realpath(requestedFullPath);
+      return isResolvedPathSafe(resolvedBase, resolvedPath);
+    } catch (error) {
+      if (
+        typeof error !== "object" ||
+        error === null ||
+        !("code" in error) ||
+        error.code !== "ENOENT"
+      ) {
+        return false;
+      }
+
+      const resolvedParent = await realpath(dirname(requestedFullPath));
+      return isResolvedPathSafe(resolvedBase, resolvedParent, true);
+    }
+  } catch {
+    return false;
+  }
 }
 
 export function startServer(directory: string, port: number) {
@@ -175,6 +218,13 @@ async function handleApi(req: Request, url: URL, directory: string): Promise<Res
         });
       }
 
+      if (!(await isPathSafeOnDisk(directory, filePath))) {
+        return new Response(JSON.stringify({ error: "Invalid path" }), {
+          status: 403,
+          headers,
+        });
+      }
+
       const content = await file.text();
       return new Response(JSON.stringify({ content, path: filePath }), { headers });
     }
@@ -191,6 +241,13 @@ async function handleApi(req: Request, url: URL, directory: string): Promise<Res
       }
 
       if (!isPathSafe(directory, filePath)) {
+        return new Response(JSON.stringify({ error: "Invalid path" }), {
+          status: 403,
+          headers,
+        });
+      }
+
+      if (!(await isPathSafeOnDisk(directory, filePath))) {
         return new Response(JSON.stringify({ error: "Invalid path" }), {
           status: 403,
           headers,
