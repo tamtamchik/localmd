@@ -74,7 +74,22 @@ console.log(`
   Press Ctrl+C to stop
 `);
 
-startServer(directory, port);
+const server = startServer(directory, port);
+
+let stopping = false;
+const stopServer = async () => {
+  if (stopping) {
+    return;
+  }
+
+  stopping = true;
+  console.log("\nStopping LocalMD...");
+  await server.stop(true);
+  console.log("LocalMD stopped.");
+};
+
+process.once("SIGINT", stopServer);
+process.once("SIGTERM", stopServer);
 
 // Open browser
 const openCommand =
