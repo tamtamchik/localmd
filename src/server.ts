@@ -1,6 +1,10 @@
 import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "path";
 import { defaultConfig, type LocalmdConfig } from "./config";
+import index from "./public/index.html";
+
+const markdownFiles = new Bun.Glob("**/*.md");
+const localHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 interface FileEntry {
   path: string;
@@ -37,9 +41,8 @@ function getAvatarUrls(email: string): string[] {
 
 async function getMarkdownFiles(dir: string): Promise<FileEntry[]> {
   const files: string[] = [];
-  const glob = new Bun.Glob("**/*.md");
 
-  for await (const path of glob.scan({ cwd: dir, onlyFiles: true })) {
+  for await (const path of markdownFiles.scan({ cwd: dir, onlyFiles: true })) {
     files.push(path);
   }
 
@@ -232,35 +235,20 @@ export function startServer(
   port: number,
   config: LocalmdConfig = defaultConfig,
 ) {
-  const publicDir = join(import.meta.dir, "public");
-
   return Bun.serve({
+    hostname: "localhost",
     port,
+    routes: {
+      "/": index,
+    },
     async fetch(req) {
       const url = new URL(req.url);
-      const path = url.pathname;
 
-      // API routes
-      if (path.startsWith("/api/")) {
+      if (url.pathname.startsWith("/api/")) {
         return handleApi(req, url, directory, config);
       }
 
-      // Serve static files from public directory
-      let filePath = path === "/" ? "/index.html" : path;
-      const staticFile = Bun.file(join(publicDir, filePath));
-
-      if (await staticFile.exists()) {
-        return new Response(staticFile, {
-          headers: {
-            "Content-Type": staticFile.type,
-          },
-        });
-      }
-
-      // Fallback to index.html for SPA routing
-      return new Response(Bun.file(join(publicDir, "index.html")), {
-        headers: { "Content-Type": "text/html" },
-      });
+      return new Response("Not found", { status: 404 });
     },
   });
 }
@@ -272,17 +260,14 @@ async function handleApi(
   config: LocalmdConfig,
 ): Promise<Response> {
   const path = url.pathname;
+  const headers = { "Content-Type": "application/json" };
+  const origin = req.headers.get("Origin");
 
-  // CORS headers
-  const headers = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
-
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers });
+  if (!localHosts.has(url.hostname) || (origin && origin !== url.origin)) {
+    return new Response(JSON.stringify({ error: "Forbidden origin" }), {
+      status: 403,
+      headers,
+    });
   }
 
   try {
@@ -307,7 +292,7 @@ async function handleApi(
         });
       }
 
-      if (!isPathSafe(directory, filePath)) {
+      if (!markdownFiles.match(filePath) || !isPathSafe(directory, filePath)) {
         return new Response(JSON.stringify({ error: "Invalid path" }), {
           status: 403,
           headers,
@@ -349,7 +334,7 @@ async function handleApi(
         });
       }
 
-      if (!isPathSafe(directory, filePath)) {
+      if (!markdownFiles.match(filePath) || !isPathSafe(directory, filePath)) {
         return new Response(JSON.stringify({ error: "Invalid path" }), {
           status: 403,
           headers,
