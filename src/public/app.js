@@ -4,6 +4,7 @@ import {
   getSaveStatusLabel,
   mapScrollPosition,
   resolveTheme,
+  resolveViewMode,
 } from "./settings.js";
 
 // State
@@ -13,6 +14,9 @@ let editor = null;
 let isDirty = false;
 let saveTimeout = null;
 let syncingScroll = false;
+const SESSION_KEY = "localmd-session";
+const session = readSession();
+const expandedDirs = new Set(Array.isArray(session.expanded) ? session.expanded : []);
 
 // DOM elements
 const fileTree = document.getElementById("file-tree");
@@ -30,6 +34,41 @@ const authorAvatars = document.getElementById("author-avatars");
 const changedAt = document.getElementById("changed-at");
 
 const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+// Session persistence
+function readSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function updateSession(patch) {
+  Object.assign(session, patch);
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch {
+    // Persistence is best-effort; keep the in-memory session.
+  }
+}
+
+function saveEditorPosition() {
+  if (!editor || !currentFile) return;
+  updateSession({
+    file: currentFile,
+    cursor: editor.getCursor(),
+    scroll: editor.getScrollInfo().top,
+  });
+}
+
+function restoreEditorPosition() {
+  if (session.file !== currentFile) return;
+  if (session.cursor) editor.setCursor(session.cursor);
+  if (typeof session.scroll === "number") editor.scrollTo(null, session.scroll);
+}
+
+window.addEventListener("pagehide", saveEditorPosition);
 
 function configureMarkdown() {
   const options = {
@@ -97,6 +136,7 @@ themeToggle.addEventListener("click", toggleTheme);
 
 function setViewMode(mode) {
   editorLayout.setAttribute("data-view-mode", mode);
+  updateSession({ view: mode });
 
   for (const button of viewModeButtons) {
     const isActive = button.getAttribute("data-view-mode") === mode;
@@ -282,7 +322,10 @@ async function loadFiles() {
     const files = await response.json();
     renderFileTree(files);
 
-    if (config.files.openReadme) {
+    if (session.file && fileTree.querySelector(fileSelector(session.file))) {
+      await openFile(session.file);
+      restoreEditorPosition();
+    } else if (config.files.openReadme) {
       const readme = files.find(
         (item) => !item.isDirectory && item.path.toLowerCase() === "readme.md",
       )?.path;
@@ -294,6 +337,10 @@ async function loadFiles() {
     console.error("Failed to load files:", error);
     fileTree.innerHTML = '<div class="loading">Failed to load files</div>';
   }
+}
+
+function fileSelector(path) {
+  return '.tree-item[data-path="' + CSS.escape(path) + '"]';
 }
 
 function renderFileTree(items, depth = 0) {
@@ -313,9 +360,10 @@ function renderFileTree(items, depth = 0) {
     el.setAttribute("data-depth", depth);
     el.setAttribute("data-path", item.path);
 
+    const isExpanded = item.isDirectory && expandedDirs.has(item.path);
     const icon = document.createElement("span");
     icon.className = "icon";
-    icon.textContent = item.isDirectory ? "\u25B6" : "\uD83D\uDCC4";
+    icon.textContent = item.isDirectory ? (isExpanded ? "\u25BC" : "\u25B6") : "\uD83D\uDCC4";
 
     const name = document.createElement("span");
     name.textContent = item.name;
@@ -330,6 +378,8 @@ function renderFileTree(items, depth = 0) {
         if (childContainer && childContainer.classList.contains("tree-children")) {
           const isExpanded = childContainer.classList.toggle("expanded");
           icon.textContent = isExpanded ? "\u25BC" : "\u25B6";
+          expandedDirs[isExpanded ? "add" : "delete"](item.path);
+          updateSession({ expanded: [...expandedDirs] });
         }
       });
 
@@ -338,6 +388,7 @@ function renderFileTree(items, depth = 0) {
       if (item.children && item.children.length > 0) {
         const childContainer = document.createElement("div");
         childContainer.className = "tree-children";
+        childContainer.classList.toggle("expanded", isExpanded);
 
         const childItems = renderFileTree(item.children, depth + 1);
         childContainer.appendChild(childItems);
@@ -378,6 +429,9 @@ async function openFile(path) {
 
     currentFile = path;
     isDirty = false;
+    if (session.file !== path) {
+      updateSession({ file: path, cursor: null, scroll: 0 });
+    }
 
     // Update UI
     currentFileEl.textContent = path;
@@ -389,7 +443,7 @@ async function openFile(path) {
     document.querySelectorAll(".tree-item.active").forEach(function (el) {
       el.classList.remove("active");
     });
-    const activeItem = document.querySelector('.tree-item[data-path="' + CSS.escape(path) + '"]');
+    const activeItem = document.querySelector(fileSelector(path));
     if (activeItem) {
       activeItem.classList.add("active");
     }
@@ -501,7 +555,7 @@ async function init() {
   config = await response.json();
   configureMarkdown();
   initTheme();
-  setViewMode(config.ui.view);
+  setViewMode(resolveViewMode(config.ui.view, session.view));
   createEditor("");
   await loadFiles();
 }

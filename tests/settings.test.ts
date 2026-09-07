@@ -5,6 +5,7 @@ import {
   getSaveStatusLabel,
   mapScrollPosition,
   resolveTheme,
+  resolveViewMode,
 } from "../src/public/settings.js";
 
 describe("resolveTheme", () => {
@@ -19,6 +20,17 @@ describe("resolveTheme", () => {
 
   test("uses an explicit configured theme", () => {
     expect(resolveTheme("dark", null, false)).toBe("dark");
+  });
+});
+
+describe("resolveViewMode", () => {
+  test("uses the view saved in the browser before the configured one", () => {
+    expect(resolveViewMode("split", "preview")).toBe("preview");
+  });
+
+  test("falls back to the configured view for a missing or unknown saved value", () => {
+    expect(resolveViewMode("split", null)).toBe("split");
+    expect(resolveViewMode("split", "wide")).toBe("split");
   });
 });
 

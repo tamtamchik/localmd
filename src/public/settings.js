@@ -9,6 +9,14 @@ export function resolveTheme(configuredTheme, savedTheme, prefersDark) {
   return configuredTheme;
 }
 
+export function resolveViewMode(configuredView, savedView) {
+  if (savedView === "editor" || savedView === "split" || savedView === "preview") {
+    return savedView;
+  }
+
+  return configuredView;
+}
+
 export function formatRelativeTime(timestamp, now = Date.now()) {
   const elapsed = new Date(timestamp).getTime() - now;
   const minute = 60 * 1000;

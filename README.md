@@ -73,7 +73,9 @@ open_readme = true
 ```
 
 The `--port` CLI option takes precedence over `server.port`. A theme selected with
-the toolbar button takes precedence over `ui.theme` in that browser.
+the toolbar button takes precedence over `ui.theme` in that browser. The browser also
+remembers the open file, view mode, expanded folders and editor position, and restores
+them on reload; the remembered file takes precedence over `files.open_readme`.
 
 To keep the config elsewhere, pass its path explicitly. Relative paths are resolved
 from the current working directory:
