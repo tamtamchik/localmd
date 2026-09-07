@@ -14,6 +14,7 @@ let editor = null;
 let isDirty = false;
 let saveTimeout = null;
 let syncingScroll = false;
+const SESSION_KEY = "localmd-session";
 const session = readSession();
 const expandedDirs = new Set(session.expanded);
 
@@ -35,8 +36,6 @@ const changedAt = document.getElementById("changed-at");
 const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
 
 // Session persistence
-const SESSION_KEY = "localmd-session";
-
 function readSession() {
   try {
     return JSON.parse(localStorage.getItem(SESSION_KEY)) || {};
