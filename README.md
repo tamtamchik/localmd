@@ -65,7 +65,7 @@ line_wrapping = true
 
 [preview]
 gfm = true
-breaks = true
+breaks = false # render soft line breaks as <br>
 syntax_highlighting = true
 
 [files]

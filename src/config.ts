@@ -37,7 +37,7 @@ export const defaultConfig: LocalmdConfig = {
     lineNumbers: true,
     lineWrapping: true,
   },
-  preview: { gfm: true, breaks: true, syntaxHighlighting: true },
+  preview: { gfm: true, breaks: false, syntaxHighlighting: true },
   files: { openReadme: true },
 };
 
