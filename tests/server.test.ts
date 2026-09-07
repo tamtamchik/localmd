@@ -232,16 +232,94 @@ describe("startServer", () => {
     }
   });
 
-  test("serves static files with Bun MIME types", async () => {
+  test("serves bundled frontend assets locally", async () => {
     const server = startServer(tmpdir(), 0);
 
     try {
-      const response = await fetch(new URL("/app.js", server.url));
+      const response = await fetch(server.url);
+      const html = await response.text();
+      const assets = [...html.matchAll(/(?:href|src)="([^"]+)"/g)]
+        .map((match) => match[1])
+        .filter((path) => !path.startsWith("data:"));
 
       expect(response.status).toBe(200);
-      expect(response.headers.get("content-type")).toBe("text/javascript;charset=utf-8");
+      expect(html).not.toMatch(/(?:href|src)="https?:\/\//);
+      expect(assets.length).toBeGreaterThan(0);
+
+      for (const path of assets) {
+        expect((await fetch(new URL(path, server.url))).status).toBe(200);
+      }
     } finally {
       server.stop(true);
+    }
+  });
+
+  test("rejects cross-origin file reads and writes", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "localmd-"));
+    const server = startServer(directory, 0);
+
+    try {
+      const filePath = join(directory, "README.md");
+      await Bun.write(filePath, "safe");
+      const url = new URL("/api/file?path=README.md", server.url);
+      const headers = { Origin: "https://example.com" };
+      const readResponse = await fetch(url, { headers });
+
+      expect(readResponse.status).toBe(403);
+      expect(readResponse.headers.get("Access-Control-Allow-Origin")).toBeNull();
+      expect(
+        (
+          await fetch(url, {
+            method: "PUT",
+            headers: { ...headers, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: "changed" }),
+          })
+        ).status,
+      ).toBe(403);
+      expect(await Bun.file(filePath).text()).toBe("safe");
+
+      expect(
+        (
+          await fetch(url, {
+            method: "PUT",
+            headers: {
+              Origin: server.url.origin,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ content: "same origin" }),
+          })
+        ).status,
+      ).toBe(200);
+      expect(await Bun.file(filePath).text()).toBe("same origin");
+    } finally {
+      server.stop(true);
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects non-Markdown file reads and writes", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "localmd-"));
+    const server = startServer(directory, 0);
+
+    try {
+      const filePath = join(directory, "secret.txt");
+      await Bun.write(filePath, "safe");
+      const url = new URL("/api/file?path=secret.txt", server.url);
+
+      expect((await fetch(url)).status).toBe(403);
+      expect(
+        (
+          await fetch(url, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: "changed" }),
+          })
+        ).status,
+      ).toBe(403);
+      expect(await Bun.file(filePath).text()).toBe("safe");
+    } finally {
+      server.stop(true);
+      await rm(directory, { recursive: true, force: true });
     }
   });
 

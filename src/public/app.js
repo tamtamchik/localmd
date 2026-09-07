@@ -1,3 +1,15 @@
+import CodeMirror from "codemirror";
+import "codemirror/addon/mode/overlay";
+import "codemirror/lib/codemirror.css";
+import "codemirror/mode/xml/xml";
+import "codemirror/mode/markdown/markdown";
+import "codemirror/mode/gfm/gfm";
+import "codemirror/theme/material-darker.css";
+import hljs from "highlight.js/lib/common";
+import lightHighlightTheme from "highlight.js/styles/github.css" with { type: "text" };
+import darkHighlightTheme from "highlight.js/styles/github-dark.css" with { type: "text" };
+import { marked } from "marked";
+import { renderMarkdown } from "./markdown.js";
 import {
   formatAuthorLabel,
   formatRelativeTime,
@@ -32,6 +44,16 @@ const viewModeButtons = document.querySelectorAll(".view-mode-btn");
 const fileHistory = document.getElementById("file-history");
 const authorAvatars = document.getElementById("author-avatars");
 const changedAt = document.getElementById("changed-at");
+
+for (const [id, css] of [
+  ["hljs-light", lightHighlightTheme],
+  ["hljs-dark", darkHighlightTheme],
+]) {
+  const stylesheet = document.createElement("style");
+  stylesheet.id = id;
+  stylesheet.textContent = css;
+  document.head.appendChild(stylesheet);
+}
 
 const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -71,21 +93,10 @@ function restoreEditorPosition() {
 window.addEventListener("pagehide", saveEditorPosition);
 
 function configureMarkdown() {
-  const options = {
+  marked.setOptions({
     breaks: config.preview.breaks,
     gfm: config.preview.gfm,
-  };
-
-  if (config.preview.syntaxHighlighting) {
-    options.highlight = function (code, lang) {
-      if (lang && hljs.getLanguage(lang)) {
-        return hljs.highlight(code, { language: lang }).value;
-      }
-      return hljs.highlightAuto(code).value;
-    };
-  }
-
-  marked.setOptions(options);
+  });
 }
 
 // Theme management
@@ -303,7 +314,7 @@ function schedulePreviewUpdate() {
 
 function updatePreview() {
   const content = getEditorContent();
-  preview.innerHTML = marked.parse(content);
+  preview.innerHTML = renderMarkdown(content);
 
   // Re-highlight code blocks
   if (config.preview.syntaxHighlighting) {
