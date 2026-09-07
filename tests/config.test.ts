@@ -38,7 +38,7 @@ line_wrapping = false
 
 [preview]
 gfm = false
-breaks = false
+breaks = true
 syntax_highlighting = false
 
 [files]
@@ -55,7 +55,7 @@ open_readme = false
           lineNumbers: false,
           lineWrapping: false,
         },
-        preview: { gfm: false, breaks: false, syntaxHighlighting: false },
+        preview: { gfm: false, breaks: true, syntaxHighlighting: false },
         files: { openReadme: false },
       });
     } finally {
