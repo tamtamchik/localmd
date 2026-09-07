@@ -16,7 +16,7 @@ let saveTimeout = null;
 let syncingScroll = false;
 const SESSION_KEY = "localmd-session";
 const session = readSession();
-const expandedDirs = new Set(session.expanded);
+const expandedDirs = new Set(Array.isArray(session.expanded) ? session.expanded : []);
 
 // DOM elements
 const fileTree = document.getElementById("file-tree");
@@ -46,7 +46,11 @@ function readSession() {
 
 function updateSession(patch) {
   Object.assign(session, patch);
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch {
+    // Persistence is best-effort; keep the in-memory session.
+  }
 }
 
 function saveEditorPosition() {
@@ -61,7 +65,7 @@ function saveEditorPosition() {
 function restoreEditorPosition() {
   if (session.file !== currentFile) return;
   if (session.cursor) editor.setCursor(session.cursor);
-  if (session.scroll) editor.scrollTo(null, session.scroll);
+  if (typeof session.scroll === "number") editor.scrollTo(null, session.scroll);
 }
 
 window.addEventListener("pagehide", saveEditorPosition);
