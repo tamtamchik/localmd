@@ -88,20 +88,23 @@ if (!isPort(port)) {
   process.exit(1);
 }
 
+const color = (format: Parameters<typeof styleText>[0], text: string) =>
+  process.stdout.isTTY && !("NO_COLOR" in process.env) ? styleText(format, text) : text;
+
 const server = startServer(directory, port, config);
 const url = server.url.origin;
 const portNotice =
   server.port !== port
-    ? `\n  ${styleText("yellow", `Port ${port} is in use; switched to ${server.port}.`)}\n`
+    ? `\n  ${color("yellow", `Port ${port} is in use; switched to ${server.port}.`)}\n`
     : "";
 
 console.log(`
-  ${styleText(["bold", "green"], "localMD")} ${styleText("dim", "• Local Markdown Editor")}
+  ${color(["bold", "green"], "localMD")} ${color("dim", "• Local Markdown Editor")}
 
-  ${styleText("dim", "Local")}    ${styleText(["bold", "cyan"], url)}
-  ${styleText("dim", "Folder")}   ${directory}
+  ${color("dim", "Local")}    ${color(["bold", "cyan"], url)}
+  ${color("dim", "Folder")}   ${directory}
 ${portNotice}
-  ${styleText("dim", "Press Ctrl+C to stop")}
+  ${color("dim", "Press Ctrl+C to stop")}
 `);
 
 let stopping = false;
