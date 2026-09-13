@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { defaultConfig, loadConfig } from "../src/config";
 
 describe("loadConfig", () => {
@@ -69,7 +70,7 @@ open_readme = false
     const configPath = join(configDirectory, "docs.toml");
 
     try {
-      await Bun.write(configPath, '[server]\nport = 4567\n');
+      await Bun.write(configPath, "[server]\nport = 4567\n");
 
       expect((await loadConfig(directory, configPath)).server.port).toBe(4567);
     } finally {

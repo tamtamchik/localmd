@@ -47,8 +47,7 @@ type Validator = (value: unknown) => boolean;
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
 export const isPort = (value: unknown): value is number =>
   Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 65535;
-const isDelay = (value: unknown): value is number =>
-  Number.isInteger(value) && Number(value) >= 0;
+const isDelay = (value: unknown): value is number => Number.isInteger(value) && Number(value) >= 0;
 const isTheme = (value: unknown): value is Theme =>
   value === "light" || value === "dark" || value === "system";
 const isViewMode = (value: unknown): value is ViewMode =>
@@ -88,10 +87,7 @@ function camelCase(value: string): string {
   return value.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
 }
 
-export async function loadConfig(
-  directory: string,
-  configPath?: string,
-): Promise<LocalmdConfig> {
+export async function loadConfig(directory: string, configPath?: string): Promise<LocalmdConfig> {
   const filePath = configPath ?? join(directory, "localmd.toml");
   const file = Bun.file(filePath);
 
