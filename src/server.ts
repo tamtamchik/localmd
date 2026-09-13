@@ -1,6 +1,8 @@
 import { realpath } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "path";
-import { defaultConfig, type LocalmdConfig } from "./config";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+
+import type { LocalmdConfig } from "./config";
+import { defaultConfig } from "./config";
 import index from "./public/index.html";
 
 const markdownFiles = new Bun.Glob("**/*.md");
@@ -26,9 +28,7 @@ interface FileHistory {
 
 function getAvatarUrls(email: string): string[] {
   const normalizedEmail = email.trim().toLowerCase();
-  const githubUser = normalizedEmail.match(
-    /^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/,
-  )?.[1];
+  const githubUser = normalizedEmail.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/)?.[1];
   const hash = new Bun.CryptoHasher("md5").update(normalizedEmail).digest("hex");
   const gravatarUrl = `https://www.gravatar.com/avatar/${hash}?d=404&s=48`;
 
@@ -101,23 +101,10 @@ function buildTree(files: string[]): FileEntry[] {
   return root;
 }
 
-async function getFileHistory(
-  directory: string,
-  filePath: string,
-): Promise<FileHistory | null> {
+async function getFileHistory(directory: string, filePath: string): Promise<FileHistory | null> {
   try {
     const logProcess = Bun.spawn(
-      [
-        "git",
-        "-C",
-        directory,
-        "log",
-        "--no-show-signature",
-        "-1",
-        "--format=%aI",
-        "--",
-        filePath,
-      ],
+      ["git", "-C", directory, "log", "--no-show-signature", "-1", "--format=%aI", "--", filePath],
       { stdout: "pipe", stderr: "ignore" },
     );
     const blameProcess = Bun.spawn(
@@ -135,10 +122,7 @@ async function getFileHistory(
       return null;
     }
 
-    const authors = new Map<
-      string,
-      { name: string; lines: number; latestTimestamp: number }
-    >();
+    const authors = new Map<string, { name: string; lines: number; latestTimestamp: number }>();
     let author = "";
     let email = "";
     let authorTimestamp = 0;
@@ -197,10 +181,7 @@ function isResolvedPathSafe(
   );
 }
 
-export async function isPathSafeOnDisk(
-  basePath: string,
-  requestedPath: string,
-): Promise<boolean> {
+export async function isPathSafeOnDisk(basePath: string, requestedPath: string): Promise<boolean> {
   if (!isPathSafe(basePath, requestedPath)) {
     return false;
   }
@@ -235,22 +216,40 @@ export function startServer(
   port: number,
   config: LocalmdConfig = defaultConfig,
 ) {
-  return Bun.serve({
-    hostname: "localhost",
-    port,
-    routes: {
-      "/": index,
-    },
-    async fetch(req) {
-      const url = new URL(req.url);
+  while (true) {
+    try {
+      return Bun.serve({
+        hostname: "127.0.0.1",
+        port,
+        reusePort: false,
+        development: process.env.NODE_ENV === "development",
+        routes: {
+          "/": index,
+        },
+        async fetch(req) {
+          const url = new URL(req.url);
 
-      if (url.pathname.startsWith("/api/")) {
-        return handleApi(req, url, directory, config);
+          if (url.pathname.startsWith("/api/")) {
+            return handleApi(req, url, directory, config);
+          }
+
+          return new Response("Not found", { status: 404 });
+        },
+      });
+    } catch (error) {
+      if (
+        !error ||
+        typeof error !== "object" ||
+        !("code" in error) ||
+        error.code !== "EADDRINUSE" ||
+        port === 0 ||
+        port >= 65535
+      ) {
+        throw error;
       }
-
-      return new Response("Not found", { status: 404 });
-    },
-  });
+      port++;
+    }
+  }
 }
 
 async function handleApi(
@@ -272,7 +271,10 @@ async function handleApi(
 
   try {
     if (path === "/api/config" && req.method === "GET") {
-      return new Response(JSON.stringify(config), { headers });
+      return new Response(
+        JSON.stringify({ ...config, directoryName: basename(directory) || directory }),
+        { headers },
+      );
     }
 
     // GET /api/files - list all markdown files

@@ -1,124 +1,105 @@
-# localmd
+<h1 align="center">
+  <img src="assets/banner.webp" alt="localMD" width="100%" />
+</h1>
 
-[![Requires Bun][ico-bun]][link-bun]
-[![Latest Version on NPM][ico-version]][link-npm]
-[![CI][ico-ci]][link-ci]
-[![Software License][ico-license]](LICENSE)
-[![Total Downloads][ico-downloads]][link-downloads]
+<p align="center">
+  Edit your Markdown files locally, with a live preview.
+</p>
 
-A Bun-powered local Markdown editor with live preview and automatic saving.
+<p align="center">
+  <a href="https://github.com/tamtamchik/localmd/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/tamtamchik/localmd/ci.yml?branch=main&style=flat-square&label=CI" /></a>
+  <a href="https://www.npmjs.com/package/@tamtamchik/localmd"><img alt="npm version" src="https://img.shields.io/npm/v/@tamtamchik/localmd?style=flat-square" /></a>
+  <a href="https://bun.com"><img alt="Bun 1.3 or newer" src="https://img.shields.io/badge/Bun-1.3%2B-fbf0df?style=flat-square&logo=bun&logoColor=white" /></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/tamtamchik/localmd?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@tamtamchik/localmd"><img alt="npm downloads" src="https://img.shields.io/npm/dt/@tamtamchik/localmd?style=flat-square" /></a>
+</p>
 
-## Installation
+<p align="center">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="docs/how-to.md">How-To Guides</a> ·
+  <a href="docs/configuration.md">Configuration Reference</a> ·
+  <a href="docs/cli.md">CLI Reference</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
-Install the command globally:
+localMD opens a folder of Markdown files in your browser. Browse the file tree,
+edit with syntax highlighting, and see the rendered result as you type. Changes
+save directly to disk, so your notes stay in the folders and Git repositories you
+already use.
 
-```bash
+## Quick start
+
+Requirements: [Bun 1.3 or newer](https://bun.com).
+
+Run it without a global install:
+
+```sh
+bunx --bun @tamtamchik/localmd ./docs
+```
+
+Or install the command:
+
+```sh
 bun add --global @tamtamchik/localmd
+localmd ./docs
 ```
 
-LocalMD requires Bun 1.3 or newer.
-
-## Usage
-
-Run it without installing:
-
-```bash
-bunx --bun @tamtamchik/localmd [directory]
-```
-
-Or use the globally installed command:
-
-```bash
-localmd [directory]
-```
-
-The directory defaults to the current working directory. LocalMD opens a browser at
-`http://localhost:3000` and lists every Markdown file below that directory.
-
-Options:
+Omit `./docs` to serve the current directory. localMD opens your browser and prints
+the address:
 
 ```text
--p, --port   Port to listen on (overrides localmd.toml)
--c, --config Path to localmd.toml
--h, --help   Show help
+  localMD • Local Markdown Editor
+
+  Local    http://127.0.0.1:3000
+  Folder   /path/to/docs
+
+  Press Ctrl+C to stop
 ```
 
-## Configuration
+If port 3000 is busy, it selects the next available port. Run another command in a
+second terminal to edit a different folder alongside the first.
 
-Add `localmd.toml` to the directory you serve. Every setting is optional; omitted
-settings keep the defaults shown below:
+## What it does
 
-```toml
-[server]
-port = 3000
-open_browser = true
+- Browse Markdown files in a nested folder tree.
+- Switch between editor, split, and preview views with synchronized scrolling.
+- Render GitHub-flavored Markdown, tables, task lists, and highlighted code blocks.
+- Save automatically, or use the Save button and `Cmd+S` / `Ctrl+S`.
+- Choose a light, dark, or system theme and restore your editor session on reload.
+- Show the last Git change and authors for tracked files.
+- Run multiple instances on separate local ports, with bundled editor assets.
 
-[ui]
-theme = "light" # light, dark, or system
-view = "split"  # editor, split, or preview
-
-[editor]
-autosave = true
-autosave_delay_ms = 2000
-line_numbers = true
-line_wrapping = true
-
-[preview]
-gfm = true
-breaks = false # render soft line breaks as <br>
-syntax_highlighting = true
-
-[files]
-open_readme = true
-```
-
-The `--port` CLI option takes precedence over `server.port`. A theme selected with
-the toolbar button takes precedence over `ui.theme` in that browser. The browser also
-remembers the open file, view mode, expanded folders and editor position, and restores
-them on reload; the remembered file takes precedence over `files.open_readme`.
-
-To keep the config elsewhere, pass its path explicitly. Relative paths are resolved
-from the current working directory:
-
-```bash
-localmd ./docs --config ./configs/docs.toml
-```
+Set defaults in [`localmd.toml`](docs/configuration.md), or start with the
+[how-to guides](docs/how-to.md) for common workflows.
 
 ## Development
 
-```bash
+```sh
 bun install
-bun run check
-```
-
-Dependency resolution excludes package versions published within the last 10 days.
-
-Start the development server:
-
-```bash
 bun run dev
 ```
 
-## Contributing
+Run the same checks as CI:
 
-Pull requests are welcome. For major changes, please open an issue first to discuss
-what you would like to change.
+```sh
+bun run check     # Biome, TypeScript, and tests
+bun run lint      # Lint, formatting, and import checks
+bun run lint:fix  # Apply safe fixes
+bun run format   # Format TypeScript, JavaScript, and JSON
+```
+
+Biome uses two-space indentation, separates built-in, package, and local imports
+with blank lines, and uses separate `import type` declarations. Run
+`bun run lint:fix` to apply formatting and import organization together.
+Dependency resolution excludes versions
+published within the last 10 days. `bun run dev` enables development mode and
+restarts the server when source files change; ordinary launches keep bundler logs
+out of the terminal.
+
+Pull requests, bug reports, and feature requests are welcome.
 
 ## License
 
-MIT
+[MIT](LICENSE)
 
-[![Buy Me A Coffee][ico-coffee]][link-coffee]
-
-[ico-coffee]: https://img.shields.io/badge/Buy%20Me%20A-Coffee-%236F4E37.svg?style=flat-square
-[ico-version]: https://img.shields.io/npm/v/@tamtamchik/localmd.svg?style=flat-square&label=version
-[ico-bun]: https://img.shields.io/badge/requires-Bun%201.3%2B-fbf0df.svg?style=flat-square&logo=bun&logoColor=white
-[ico-ci]: https://img.shields.io/github/actions/workflow/status/tamtamchik/localmd/ci.yml?branch=main&style=flat-square&label=CI
-[ico-license]: https://img.shields.io/npm/l/@tamtamchik/localmd.svg?style=flat-square
-[ico-downloads]: https://img.shields.io/npm/dt/@tamtamchik/localmd.svg?style=flat-square
-
-[link-coffee]: https://www.buymeacoffee.com/tamtamchik
-[link-npm]: https://www.npmjs.com/package/@tamtamchik/localmd
-[link-bun]: https://bun.com
-[link-ci]: https://github.com/tamtamchik/localmd/actions/workflows/ci.yml
-[link-downloads]: https://www.npmjs.com/package/@tamtamchik/localmd
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20A-Coffee-%236F4E37?style=flat-square)](https://www.buymeacoffee.com/tamtamchik)

@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 
-import { parseArgs } from "util";
-import { stat } from "fs/promises";
-import { resolve } from "path";
-import { isPort, loadConfig, type LocalmdConfig } from "./config";
+import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
+import { parseArgs, styleText } from "node:util";
+
+import type { LocalmdConfig } from "./config";
+import { isPort, loadConfig } from "./config";
 import { startServer } from "./server";
 
 const { values, positionals } = parseArgs({
@@ -28,7 +30,7 @@ const { values, positionals } = parseArgs({
 
 if (values.help) {
   console.log(`
-localmd - Local Markdown Editor
+localMD - Local Markdown Editor
 
 Usage: localmd [directory] [options]
 
@@ -36,16 +38,18 @@ Arguments:
   directory    Directory to serve (default: current directory)
 
 Options:
-  -p, --port   Port to listen on (overrides localmd.toml)
+  -p, --port   Preferred port (overrides localmd.toml; default: 3000)
   -c, --config Path to localmd.toml
   -h, --help   Show this help message
 
 Examples:
-  localmd                    # Serve current directory on port 3000
+  localmd                    # Serve current directory, starting at port 3000
   localmd ./docs             # Serve ./docs directory
-  localmd -p 8080            # Serve on port 8080
+  localmd -p 8080            # Start looking for a free port at 8080
   localmd -c ./localmd.toml  # Use an explicit config file
-  localmd ./notes -p 4000    # Serve ./notes on port 4000
+  localmd ./notes -p 4000    # Serve ./notes, starting at port 4000
+
+If the preferred port is in use, localMD tries higher ports up to 65535.
 `);
   process.exit(0);
 }
@@ -84,16 +88,24 @@ if (!isPort(port)) {
   process.exit(1);
 }
 
-console.log(`
-  LocalMD - Local Markdown Editor
-
-  Serving: ${directory}
-  URL:     http://localhost:${port}
-
-  Press Ctrl+C to stop
-`);
+const color = (format: Parameters<typeof styleText>[0], text: string) =>
+  process.stdout.isTTY && !("NO_COLOR" in process.env) ? styleText(format, text) : text;
 
 const server = startServer(directory, port, config);
+const url = server.url.origin;
+const portNotice =
+  server.port !== port
+    ? `\n  ${color("yellow", `Port ${port} is in use; switched to ${server.port}.`)}\n`
+    : "";
+
+console.log(`
+  ${color(["bold", "green"], "localMD")} ${color("dim", "• Local Markdown Editor")}
+
+  ${color("dim", "Local")}    ${color(["bold", "cyan"], url)}
+  ${color("dim", "Folder")}   ${directory}
+${portNotice}
+  ${color("dim", "Press Ctrl+C to stop")}
+`);
 
 let stopping = false;
 const stopServer = async () => {
@@ -102,16 +114,15 @@ const stopServer = async () => {
   }
 
   stopping = true;
-  console.log("\nStopping LocalMD...");
+  console.log("\nStopping localMD...");
   await server.stop(true);
-  console.log("LocalMD stopped.");
+  console.log("localMD stopped.");
 };
 
 process.once("SIGINT", stopServer);
 process.once("SIGTERM", stopServer);
 
 if (config.server.openBrowser) {
-  const url = `http://localhost:${port}`;
   const openCommand =
     process.platform === "darwin"
       ? ["open", url]

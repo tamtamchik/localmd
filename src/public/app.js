@@ -9,6 +9,7 @@ import hljs from "highlight.js/lib/common";
 import lightHighlightTheme from "highlight.js/styles/github.css" with { type: "text" };
 import darkHighlightTheme from "highlight.js/styles/github-dark.css" with { type: "text" };
 import { marked } from "marked";
+
 import { renderMarkdown } from "./markdown.js";
 import {
   formatAuthorLabel,
@@ -351,7 +352,7 @@ async function loadFiles() {
 }
 
 function fileSelector(path) {
-  return '.tree-item[data-path="' + CSS.escape(path) + '"]';
+  return `.tree-item[data-path="${CSS.escape(path)}"]`;
 }
 
 function renderFileTree(items, depth = 0) {
@@ -386,7 +387,7 @@ function renderFileTree(items, depth = 0) {
       el.addEventListener("click", function (e) {
         e.stopPropagation();
         const childContainer = el.nextElementSibling;
-        if (childContainer && childContainer.classList.contains("tree-children")) {
+        if (childContainer?.classList.contains("tree-children")) {
           const isExpanded = childContainer.classList.toggle("expanded");
           icon.textContent = isExpanded ? "\u25BC" : "\u25B6";
           expandedDirs[isExpanded ? "add" : "delete"](item.path);
@@ -430,7 +431,7 @@ async function openFile(path) {
 
   try {
     fileHistory.hidden = true;
-    const response = await fetch("/api/file?path=" + encodeURIComponent(path));
+    const response = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
     const data = await response.json();
 
     if (data.error) {
@@ -474,7 +475,7 @@ async function saveFile() {
   try {
     setSaveStatus("saving");
 
-    const response = await fetch("/api/file?path=" + encodeURIComponent(currentFile), {
+    const response = await fetch(`/api/file?path=${encodeURIComponent(currentFile)}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -564,6 +565,7 @@ saveBtn.addEventListener("click", saveFile);
 async function init() {
   const response = await fetch("/api/config");
   config = await response.json();
+  document.title = `${config.directoryName} · localMD`;
   configureMarkdown();
   initTheme();
   setViewMode(resolveViewMode(config.ui.view, session.view));
@@ -572,6 +574,6 @@ async function init() {
 }
 
 init().catch(function (error) {
-  console.error("Failed to initialize LocalMD:", error);
-  fileTree.innerHTML = '<div class="loading">Failed to initialize LocalMD</div>';
+  console.error("Failed to initialize localMD:", error);
+  fileTree.innerHTML = '<div class="loading">Failed to initialize localMD</div>';
 });

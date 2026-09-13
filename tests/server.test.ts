@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
+
 import { defaultConfig } from "../src/config";
 import { isPathSafe, isPathSafeOnDisk, startServer } from "../src/server";
 
@@ -61,6 +62,55 @@ describe("isPathSafeOnDisk", () => {
 });
 
 describe("startServer", () => {
+  test("does not retry unrelated startup errors", () => {
+    const error = Object.assign(new Error("Permission denied"), { code: "EACCES" });
+    const serve = spyOn(Bun, "serve").mockImplementation(() => {
+      throw error;
+    });
+
+    try {
+      expect(() => startServer(tmpdir(), 3000)).toThrow(error);
+      expect(serve).toHaveBeenCalledTimes(1);
+    } finally {
+      serve.mockRestore();
+    }
+  });
+
+  test("stops at the maximum port when it is occupied", () => {
+    const error = Object.assign(new Error("Address in use"), { code: "EADDRINUSE" });
+    const serve = spyOn(Bun, "serve").mockImplementation(() => {
+      throw error;
+    });
+
+    try {
+      expect(() => startServer(tmpdir(), 65535)).toThrow(error);
+      expect(serve).toHaveBeenCalledTimes(1);
+    } finally {
+      serve.mockRestore();
+    }
+  });
+
+  test("starts parallel instances on different ports when the requested port is occupied", async () => {
+    const first = startServer(tmpdir(), 0);
+    const servers = [first];
+
+    try {
+      const second = startServer(tmpdir(), first.port!);
+      servers.push(second);
+      const third = startServer(tmpdir(), first.port!);
+      servers.push(third);
+
+      expect(second.port!).toBeGreaterThan(first.port!);
+      expect(third.port!).toBeGreaterThan(second.port!);
+      for (const server of servers) {
+        const response = await fetch(new URL("/api/config", server.url));
+        expect(response.status).toBe(200);
+      }
+    } finally {
+      for (const server of servers) server.stop(true);
+    }
+  });
+
   test("serves the browser configuration", async () => {
     const config = {
       ...defaultConfig,
@@ -72,7 +122,7 @@ describe("startServer", () => {
       const response = await fetch(new URL("/api/config", server.url));
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual(config);
+      expect(await response.json()).toEqual({ ...config, directoryName: basename(tmpdir()) });
     } finally {
       server.stop(true);
     }
@@ -83,10 +133,7 @@ describe("startServer", () => {
     const server = startServer(directory, 0);
 
     try {
-      await Bun.write(
-        join(directory, "README.md"),
-        "Original one\nOriginal two\nOriginal three\n",
-      );
+      await Bun.write(join(directory, "README.md"), "Original one\nOriginal two\nOriginal three\n");
       await runGit(directory, ["init", "-q"]);
       await runGit(directory, ["add", "README.md"]);
       await runGit(
@@ -106,10 +153,7 @@ describe("startServer", () => {
         },
       );
 
-      await Bun.write(
-        join(directory, "README.md"),
-        "Original one\nOriginal two\nOcto three\n",
-      );
+      await Bun.write(join(directory, "README.md"), "Original one\nOriginal two\nOcto three\n");
       await runGit(directory, ["add", "README.md"]);
       await runGit(
         directory,
@@ -128,10 +172,7 @@ describe("startServer", () => {
         },
       );
 
-      await Bun.write(
-        join(directory, "README.md"),
-        "Final one\nOriginal two\nOcto three\n",
-      );
+      await Bun.write(join(directory, "README.md"), "Final one\nOriginal two\nOcto three\n");
       await runGit(directory, ["add", "README.md"]);
       await runGit(
         directory,
@@ -196,9 +237,7 @@ describe("startServer", () => {
         "Add GitHub file",
       ]);
 
-      const githubResponse = await fetch(
-        new URL("/api/file?path=GITHUB.md", server.url),
-      );
+      const githubResponse = await fetch(new URL("/api/file?path=GITHUB.md", server.url));
       const githubData = (await githubResponse.json()) as {
         history: {
           authors: Array<{ avatarUrls: string[] }>;

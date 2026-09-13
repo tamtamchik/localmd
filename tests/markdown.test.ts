@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
+
 import createDOMPurify from "dompurify";
 import { JSDOM } from "jsdom";
+
 import { renderMarkdown } from "../src/public/markdown.js";
 
 test("sanitizes unsafe preview HTML without removing Markdown formatting", () => {
