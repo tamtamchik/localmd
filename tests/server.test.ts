@@ -62,6 +62,28 @@ describe("isPathSafeOnDisk", () => {
 });
 
 describe("startServer", () => {
+  test("serves the app and its assets at nested Markdown URLs", async () => {
+    const server = startServer(tmpdir(), 0);
+    try {
+      const url = new URL(
+        "/product/adr/common/001-stablecoin-archetype.md#open-questions",
+        server.url,
+      );
+      const response = await fetch(url);
+      const html = await response.text();
+      expect(response.status).toBe(200);
+      expect(html).toContain('id="preview"');
+      for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
+        if (!match[1].startsWith("data:")) {
+          expect((await fetch(new URL(match[1], url))).status).toBe(200);
+        }
+      }
+      expect((await fetch(new URL("/api/unknown", server.url))).status).toBe(404);
+    } finally {
+      server.stop(true);
+    }
+  });
+
   test("does not retry unrelated startup errors", () => {
     const error = Object.assign(new Error("Permission denied"), { code: "EACCES" });
     const serve = spyOn(Bun, "serve").mockImplementation(() => {

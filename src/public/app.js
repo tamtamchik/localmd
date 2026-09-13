@@ -206,6 +206,42 @@ function syncEditorFromPreview() {
 
 preview.addEventListener("scroll", syncEditorFromPreview);
 
+function scrollToAnchor(hash) {
+  if (!hash) return;
+  const target = preview.querySelector(`#${CSS.escape(decodeURIComponent(hash.slice(1)))}`);
+  if (!target) return;
+  if (editorLayout.getAttribute("data-view-mode") === "editor") setViewMode("split");
+  requestAnimationFrame(function () {
+    target.scrollIntoView({ block: "start" });
+    syncEditorFromPreview();
+  });
+}
+
+preview.addEventListener("click", function (event) {
+  const link = event.target.closest("a[href]");
+  if (
+    !link ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  )
+    return;
+  if (link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
+  const url = new URL(link.href);
+  if (url.origin !== window.location.origin || !url.pathname.endsWith(".md")) return;
+  event.preventDefault();
+  openFile(decodeURIComponent(url.pathname.slice(1)), url.hash);
+});
+
+window.addEventListener("popstate", function () {
+  const url = new URL(window.location.href);
+  if (url.pathname.endsWith(".md")) {
+    openFile(decodeURIComponent(url.pathname.slice(1)), url.hash, false);
+  }
+});
+
 for (const button of viewModeButtons) {
   button.addEventListener("click", function () {
     setViewMode(button.getAttribute("data-view-mode"));
@@ -334,7 +370,13 @@ async function loadFiles() {
     const files = await response.json();
     renderFileTree(files);
 
-    if (session.file && fileTree.querySelector(fileSelector(session.file))) {
+    if (window.location.pathname.endsWith(".md")) {
+      await openFile(
+        decodeURIComponent(window.location.pathname.slice(1)),
+        window.location.hash,
+        false,
+      );
+    } else if (session.file && fileTree.querySelector(fileSelector(session.file))) {
       await openFile(session.file);
       restoreEditorPosition();
     } else if (config.files.openReadme) {
@@ -421,7 +463,15 @@ function renderFileTree(items, depth = 0) {
   return fragment;
 }
 
-async function openFile(path) {
+async function openFile(path, hash = "", pushHistory = true) {
+  const url = `/${path.split("/").map(encodeURIComponent).join("/")}${hash}`;
+  if (path === currentFile) {
+    if (pushHistory && url !== window.location.pathname + window.location.hash) {
+      window.history.pushState(null, "", url);
+    }
+    scrollToAnchor(hash);
+    return;
+  }
   if (isDirty && currentFile) {
     const confirmSave = confirm("You have unsaved changes. Save before switching?");
     if (confirmSave) {
@@ -463,6 +513,11 @@ async function openFile(path) {
     // Load content into editor
     createEditor(data.content);
     updatePreview();
+    if (pushHistory) {
+      const method = window.location.pathname === "/" ? "replaceState" : "pushState";
+      window.history[method](null, "", url);
+    }
+    scrollToAnchor(hash);
   } catch (error) {
     console.error("Failed to open file:", error);
     alert("Failed to open file");
