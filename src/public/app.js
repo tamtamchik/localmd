@@ -23,6 +23,7 @@ import {
 // State
 let config = null;
 let currentFile = null;
+let navigationGeneration = 0;
 let editor = null;
 let isDirty = false;
 let saveTimeout = null;
@@ -464,6 +465,7 @@ function renderFileTree(items, depth = 0) {
 }
 
 async function openFile(path, hash = "", pushHistory = true) {
+  const generation = ++navigationGeneration;
   const url = `/${path.split("/").map(encodeURIComponent).join("/")}${hash}`;
   if (path === currentFile) {
     if (pushHistory && url !== window.location.pathname + window.location.hash) {
@@ -479,10 +481,12 @@ async function openFile(path, hash = "", pushHistory = true) {
     }
   }
 
+  if (generation !== navigationGeneration) return;
   try {
     fileHistory.hidden = true;
     const response = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
     const data = await response.json();
+    if (generation !== navigationGeneration) return;
 
     if (data.error) {
       alert(data.error);
@@ -519,6 +523,7 @@ async function openFile(path, hash = "", pushHistory = true) {
     }
     scrollToAnchor(hash);
   } catch (error) {
+    if (generation !== navigationGeneration) return;
     console.error("Failed to open file:", error);
     alert("Failed to open file");
   }

@@ -75,7 +75,14 @@ describe("startServer", () => {
       expect(html).toContain('id="preview"');
       for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
         if (!match[1].startsWith("data:")) {
-          expect((await fetch(new URL(match[1], url))).status).toBe(200);
+          const asset = await fetch(new URL(match[1], url));
+          expect(asset.status).toBe(200);
+          expect(asset.headers.get("content-type")).not.toContain("text/html");
+          if (match[1].endsWith(".css")) {
+            expect(asset.headers.get("content-type")).toContain("text/css");
+          } else if (match[1].endsWith(".js")) {
+            expect(asset.headers.get("content-type")).toContain("javascript");
+          }
         }
       }
       expect((await fetch(new URL("/api/unknown", server.url))).status).toBe(404);
