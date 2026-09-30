@@ -56,27 +56,33 @@ test("opens deep links before the saved session and follows Markdown links and h
     expect(opened).toEqual(["product/adr/common/001-stablecoin-archetype.md"]);
     expect(window.document.getElementById("current-file")!.textContent).toBe(opened[0]);
 
-    window.document.querySelector<HTMLAnchorElement>('#preview a[href="next.md#details"]')!.click();
-    await waitFor(() => scrolled.includes("details"));
+    const initialHistoryLength = window.history.length;
+    const nextLink = window.document.querySelector<HTMLAnchorElement>(
+      '#preview a[href="next.md#details"]',
+    )!;
+    nextLink.click();
+    nextLink.click();
+    await waitFor(() => scrolled.length === 3);
+    expect(window.history.length).toBe(initialHistoryLength + 1);
     expect(opened[1]).toBe("product/adr/common/next.md");
     expect(window.location.pathname).toBe("/product/adr/common/next.md");
     expect(window.location.hash).toBe("#details");
 
     window.document.querySelector<HTMLAnchorElement>('#preview a[href="#open-questions"]')!.click();
-    await waitFor(() => scrolled.length === 3);
-    expect(opened.length).toBe(2);
+    await waitFor(() => scrolled.length === 4);
+    expect(opened.length).toBe(3);
     expect(window.location.hash).toBe("#open-questions");
 
     window.history.back();
-    await waitFor(() => scrolled.length === 4);
+    await waitFor(() => scrolled.length === 5);
     expect(window.location.hash).toBe("#details");
     window.history.back();
-    await waitFor(() => opened.length === 3 && scrolled.length === 5);
-    expect(opened[2]).toBe(opened[0]);
+    await waitFor(() => opened.length === 4 && scrolled.length === 6);
+    expect(opened[3]).toBe(opened[0]);
     expect(window.location.hash).toBe("#open-questions");
     window.document.querySelector<HTMLAnchorElement>('#preview a[href^="http:"]')!.click();
-    await waitFor(() => opened.length === 4 && scrolled.length === 6);
-    expect(opened[3]).toBe("other file.md");
+    await waitFor(() => opened.length === 5 && scrolled.length === 7);
+    expect(opened[4]).toBe("other file.md");
     expect(window.location.pathname).toBe("/other%20file.md");
     expect(window.location.hash).toBe("#details");
     expect(errors).toEqual([]);

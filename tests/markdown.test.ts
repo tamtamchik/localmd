@@ -45,3 +45,32 @@ test("adds stable anchors for formatted, repeated, and Unicode headings", () => 
     'id="open-questions"',
   );
 });
+
+test("keeps heading anchors distinct from existing non-heading IDs", () => {
+  const { window } = new JSDOM("");
+  const html = renderMarkdown(
+    '<a id="open-questions"></a>\n\n## Open questions\n\n## Open questions\n\n<div id="open-questions-1"></div>',
+    createDOMPurify(window),
+  );
+  const document = new JSDOM(html).window.document;
+  expect([...document.querySelectorAll("h2")].map((heading) => heading.id)).toEqual([
+    "open-questions-2",
+    "open-questions-3",
+  ]);
+  expect(document.querySelector("#open-questions-2")?.tagName).toBe("H2");
+});
+
+test("gives symbol-only headings stable non-empty anchors", () => {
+  const { window } = new JSDOM("");
+  const content = "## 🎉\n\n## !!!\n\n## Heading";
+  const sanitizer = createDOMPurify(window);
+  const html = renderMarkdown(content, sanitizer);
+  const document = new JSDOM(html).window.document;
+  expect([...document.querySelectorAll("h2")].map((heading) => heading.id)).toEqual([
+    "heading",
+    "heading-1",
+    "heading-2",
+  ]);
+  expect(document.querySelector("#heading")?.textContent).toBe("🎉");
+  expect(renderMarkdown(content, sanitizer)).toBe(html);
+});

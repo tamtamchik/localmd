@@ -513,7 +513,7 @@ async function openFile(path, hash = "", pushHistory = true) {
     // Load content into editor
     createEditor(data.content);
     updatePreview();
-    if (pushHistory) {
+    if (pushHistory && url !== window.location.pathname + window.location.hash) {
       const method = window.location.pathname === "/" ? "replaceState" : "pushState";
       window.history[method](null, "", url);
     }
