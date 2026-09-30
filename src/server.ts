@@ -224,16 +224,8 @@ export function startServer(
         reusePort: false,
         development: process.env.NODE_ENV === "development",
         routes: {
-          "/": index,
-        },
-        async fetch(req) {
-          const url = new URL(req.url);
-
-          if (url.pathname.startsWith("/api/")) {
-            return handleApi(req, url, directory, config);
-          }
-
-          return new Response("Not found", { status: 404 });
+          "/*": index,
+          "/api/*": (req) => handleApi(req, new URL(req.url), directory, config),
         },
       });
     } catch (error) {
