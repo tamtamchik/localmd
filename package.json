@@ -54,7 +54,7 @@
     "typescript": "7.0.2"
   },
   "dependencies": {
-    "codemirror": "5.65.16",
+    "codemirror": "6.0.2",
     "dompurify": "^3.4.12",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.6"
