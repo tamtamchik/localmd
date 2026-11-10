@@ -1,10 +1,10 @@
-import CodeMirror from "codemirror";
-import "codemirror/addon/mode/overlay";
-import "codemirror/lib/codemirror.css";
-import "codemirror/mode/xml/xml";
-import "codemirror/mode/markdown/markdown";
-import "codemirror/mode/gfm/gfm";
-import "codemirror/theme/material-darker.css";
+import { indentWithTab } from "@codemirror/commands";
+import { markdown } from "@codemirror/lang-markdown";
+import { Compartment } from "@codemirror/state";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { keymap, lineNumbers } from "@codemirror/view";
+import { GFM } from "@lezer/markdown";
+import { EditorView, minimalSetup } from "codemirror";
 import hljs from "highlight.js/lib/common";
 import lightHighlightTheme from "highlight.js/styles/github.css" with { type: "text" };
 import darkHighlightTheme from "highlight.js/styles/github-dark.css" with { type: "text" };
@@ -25,6 +25,11 @@ let config = null;
 let currentFile = null;
 let navigationGeneration = 0;
 let editor = null;
+const editorTheme = new Compartment();
+const editorThemes = {
+  light: EditorView.theme({}),
+  dark: oneDark,
+};
 let isDirty = false;
 let saveTimeout = null;
 let syncingScroll = false;
@@ -79,17 +84,31 @@ function updateSession(patch) {
 
 function saveEditorPosition() {
   if (!editor || !currentFile) return;
+  const head = editor.state.selection.main.head;
+  const line = editor.state.doc.lineAt(head);
   updateSession({
     file: currentFile,
-    cursor: editor.getCursor(),
-    scroll: editor.getScrollInfo().top,
+    cursor: { line: line.number - 1, ch: head - line.from },
+    scroll: editor.scrollDOM.scrollTop,
   });
 }
 
 function restoreEditorPosition() {
   if (session.file !== currentFile) return;
-  if (session.cursor) editor.setCursor(session.cursor);
-  if (typeof session.scroll === "number") editor.scrollTo(null, session.scroll);
+  if (Number.isInteger(session.cursor?.line) && Number.isInteger(session.cursor?.ch)) {
+    const line = editor.state.doc.line(
+      Math.max(1, Math.min(session.cursor.line + 1, editor.state.doc.lines)),
+    );
+    const anchor = line.from + Math.max(0, Math.min(session.cursor.ch, line.length));
+    editor.dispatch({ selection: { anchor } });
+  }
+  if (typeof session.scroll === "number") {
+    const view = editor;
+    const top = session.scroll;
+    requestAnimationFrame(function () {
+      if (editor === view) view.scrollDOM.scrollTop = top;
+    });
+  }
 }
 
 window.addEventListener("pagehide", saveEditorPosition);
@@ -137,7 +156,9 @@ function updateHljsTheme(theme) {
 
 function updateEditorTheme(theme) {
   if (editor) {
-    editor.setOption("theme", theme === "dark" ? "material-darker" : "default");
+    editor.dispatch({
+      effects: editorTheme.reconfigure(editorThemes[theme]),
+    });
   }
 }
 
@@ -158,7 +179,7 @@ function setViewMode(mode) {
   }
 
   if (editor && mode !== "preview") {
-    editor.refresh();
+    editor.requestMeasure();
   }
 }
 
@@ -178,11 +199,11 @@ function syncPreviewFromEditor() {
   if (!editor) return;
 
   synchronizeScroll(function () {
-    const info = editor.getScrollInfo();
+    const scroller = editor.scrollDOM;
     preview.scrollTop = mapScrollPosition(
-      info.top,
-      info.height,
-      info.clientHeight,
+      scroller.scrollTop,
+      scroller.scrollHeight,
+      scroller.clientHeight,
       preview.scrollHeight,
       preview.clientHeight,
     );
@@ -193,15 +214,15 @@ function syncEditorFromPreview() {
   if (!editor) return;
 
   synchronizeScroll(function () {
-    const info = editor.getScrollInfo();
+    const scroller = editor.scrollDOM;
     const top = mapScrollPosition(
       preview.scrollTop,
       preview.scrollHeight,
       preview.clientHeight,
-      info.height,
-      info.clientHeight,
+      scroller.scrollHeight,
+      scroller.clientHeight,
     );
-    editor.scrollTo(null, top);
+    scroller.scrollTop = top;
   });
 }
 
@@ -252,39 +273,36 @@ for (const button of viewModeButtons) {
 // Editor
 function createEditor(content = "") {
   if (editor) {
-    editor.toTextArea();
+    editor.destroy();
   }
 
-  // Create textarea if it doesn't exist
-  let textarea = editorContainer.querySelector("textarea");
-  if (!textarea) {
-    textarea = document.createElement("textarea");
-    editorContainer.appendChild(textarea);
-  }
-  textarea.value = content;
-
-  editor = CodeMirror.fromTextArea(textarea, {
-    mode: "gfm",
-    theme: isDarkMode() ? "material-darker" : "default",
-    lineNumbers: config.editor.lineNumbers,
-    lineWrapping: config.editor.lineWrapping,
-    autofocus: true,
+  editor = new EditorView({
+    doc: content,
+    parent: editorContainer,
+    extensions: [
+      minimalSetup,
+      markdown({ extensions: [GFM] }),
+      keymap.of([indentWithTab]),
+      config.editor.lineNumbers ? lineNumbers() : [],
+      config.editor.lineWrapping ? EditorView.lineWrapping : [],
+      editorTheme.of(editorThemes[isDarkMode() ? "dark" : "light"]),
+      EditorView.updateListener.of(function (update) {
+        if (!update.docChanged) return;
+        isDirty = true;
+        updateSaveStatus();
+        schedulePreviewUpdate();
+        scheduleAutoSave();
+      }),
+      EditorView.domEventHandlers({
+        scroll: syncPreviewFromEditor,
+      }),
+    ],
   });
-
-  editor.on("change", function () {
-    isDirty = true;
-    updateSaveStatus();
-    schedulePreviewUpdate();
-    scheduleAutoSave();
-  });
-  editor.on("scroll", syncPreviewFromEditor);
-
-  // Set editor height
-  editor.setSize("100%", "100%");
+  editor.focus();
 }
 
 function getEditorContent() {
-  return editor ? editor.getValue() : "";
+  return editor ? editor.state.doc.toString() : "";
 }
 
 function createAuthorAvatar(author) {

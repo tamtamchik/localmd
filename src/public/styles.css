@@ -420,16 +420,29 @@ html, body {
   flex-direction: column;
 }
 
-.CodeMirror {
+.cm-editor {
   flex: 1;
-  height: auto !important;
+  min-height: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-family: "SF Mono", "Fira Code", "Consolas", monospace;
   font-size: 14px;
   line-height: 1.6;
 }
 
-[data-theme="dark"] .CodeMirror {
-  background: var(--bg-primary);
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm-editor .cm-scroller {
+  overflow: auto;
+  font-family: inherit;
+}
+
+.cm-editor .cm-gutters {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  border-color: var(--border-color);
 }
 
 .preview-content {

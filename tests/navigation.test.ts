@@ -4,6 +4,97 @@ import { JSDOM } from "jsdom";
 
 import { defaultConfig } from "../src/config";
 
+test.each([
+  { cursor: { line: 1, ch: 3 }, restored: { line: 1, ch: 3 } },
+  { cursor: { line: 100, ch: 100 }, restored: { line: 1, ch: 11 } },
+])("restores saved positions and editor settings ($cursor)", async ({ cursor, restored }) => {
+  const build = await Bun.build({
+    entrypoints: ["src/public/app.js"],
+    target: "browser",
+    format: "iife",
+  });
+  expect(build.success).toBe(true);
+  const script = await build.outputs.find((output) => output.path.endsWith(".js"))!.text();
+  const dom = new JSDOM(await Bun.file("src/public/index.html").text(), {
+    url: "http://127.0.0.1:3000/",
+    runScripts: "outside-only",
+    pretendToBeVisual: true,
+  });
+  const { window } = dom;
+  const { console: browserConsole, DOMRect } = window;
+  const errors: unknown[] = [];
+  const saved: string[] = [];
+  browserConsole.error = (...messages: unknown[]) => errors.push(...messages);
+  Object.assign(window, {
+    matchMedia: () => ({
+      matches: false,
+      addEventListener() {},
+      addListener() {},
+      removeListener() {},
+    }),
+    CSS: { escape: (value: string) => value },
+    alert: (message: unknown) => errors.push(message),
+    fetch: async (url: string, options?: RequestInit) => {
+      if (url === "/api/config") {
+        return Response.json({
+          ...defaultConfig,
+          ui: { ...defaultConfig.ui, theme: "dark" },
+          editor: {
+            ...defaultConfig.editor,
+            lineNumbers: false,
+            lineWrapping: false,
+            autosaveDelayMs: 10,
+          },
+        });
+      }
+      if (url === "/api/files") {
+        return Response.json([{ path: "saved.md", name: "saved.md", isDirectory: false }]);
+      }
+      if (options?.method === "PUT") {
+        saved.push(JSON.parse(options.body as string).content);
+        return Response.json({ success: true });
+      }
+      return Response.json({ content: "# Saved\nSecond line", history: null });
+    },
+  });
+  window.localStorage.setItem(
+    "localmd-session",
+    JSON.stringify({ file: "saved.md", cursor, scroll: 0 }),
+  );
+  window.Range.prototype.getBoundingClientRect = () => new DOMRect();
+  window.Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
+  async function waitFor(check: () => boolean) {
+    for (let i = 0; i < 100 && !check(); i++) await Bun.sleep(10);
+    expect(errors).toEqual([]);
+    expect(check()).toBe(true);
+  }
+  try {
+    window.eval(script);
+    await waitFor(() => window.document.querySelector("#preview h1")?.textContent === "Saved");
+    expect(window.document.querySelectorAll(".cm-editor")).toHaveLength(1);
+    expect(window.document.querySelector(".cm-lineNumbers")).toBeNull();
+    expect(window.document.querySelector(".cm-lineWrapping")).toBeNull();
+    expect(window.document.documentElement.getAttribute("data-theme")).toBe("dark");
+    window.dispatchEvent(new window.Event("pagehide"));
+    expect(JSON.parse(window.localStorage.getItem("localmd-session")!).cursor).toEqual(restored);
+
+    window.document.querySelector(".cm-content .cm-line")!.textContent = "# Autosaved";
+    await waitFor(() => saved.length === 1);
+    expect(saved).toEqual(["# Autosaved\nSecond line"]);
+    await waitFor(() => window.document.querySelector("#preview h1")?.textContent === "Autosaved");
+
+    window.document.querySelectorAll(".cm-content .cm-line")[1]!.textContent =
+      "[link](https://example.com)";
+    await waitFor(() => window.document.querySelector("#preview a") !== null);
+    const url = [...window.document.querySelectorAll(".cm-content span")].find(
+      (span) => span.textContent === "https://example.com",
+    )!;
+    expect(window.getComputedStyle(url).color).toBe("rgb(125, 135, 153)");
+  } finally {
+    window.close();
+  }
+});
+
 test("opens deep links before the saved session and follows Markdown links and history", async () => {
   const build = await Bun.build({
     entrypoints: ["src/public/app.js"],
@@ -20,18 +111,30 @@ test("opens deep links before the saved session and follows Markdown links and h
   });
   const { window } = dom;
   const opened: string[] = [];
+  const saved: { path: string; content: string }[] = [];
   const scrolled: string[] = [];
   const errors: unknown[] = [];
+  const { console: browserConsole } = window;
+  browserConsole.error = (...messages: unknown[]) => errors.push(...messages);
   let holdRequests = false;
   const pending = new Map<string, (response: Response) => void>();
   Object.assign(window, {
-    matchMedia: () => ({ matches: false, addEventListener() {} }),
+    matchMedia: () => ({
+      matches: false,
+      addEventListener() {},
+      addListener() {},
+      removeListener() {},
+    }),
     CSS: { escape: (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, "\\$&") },
     alert: (message: unknown) => errors.push(message),
-    fetch: async (url: string) => {
+    fetch: async (url: string, options?: RequestInit) => {
       if (url === "/api/config") return Response.json(defaultConfig);
       if (url === "/api/files") return Response.json([]);
       const path = new URL(url, window.location.href).searchParams.get("path")!;
+      if (options?.method === "PUT") {
+        saved.push({ path, content: JSON.parse(options.body as string).content });
+        return Response.json({ success: true });
+      }
       opened.push(path);
       const response = Response.json({
         path,
@@ -54,6 +157,7 @@ test("opens deep links before the saved session and follows Markdown links and h
   };
   async function waitFor(check: () => boolean) {
     for (let i = 0; i < 100 && !check(); i++) await Bun.sleep(10);
+    expect(errors).toEqual([]);
     expect(check()).toBe(true);
   }
   try {
@@ -119,6 +223,36 @@ test("opens deep links before the saved session and follows Markdown links and h
     expect(window.document.querySelector("#preview h2")?.textContent).toBe("Latest");
     expect(JSON.parse(window.localStorage.getItem("localmd-session")!).file).toBe("later.md");
     expect(errors).toEqual([]);
+
+    expect(window.document.querySelectorAll(".cm-editor")).toHaveLength(1);
+    expect(window.document.querySelector(".cm-lineNumbers")).not.toBeNull();
+    expect(window.document.querySelector(".cm-lineWrapping")).not.toBeNull();
+    const lightEditorClasses = window.document.querySelector(".cm-editor")!.className;
+    window.document.getElementById("theme-toggle")!.click();
+    expect(window.document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(window.document.querySelector(".cm-editor")!.className).not.toBe(lightEditorClasses);
+    window.document.getElementById("theme-toggle")!.click();
+    expect(window.document.querySelector(".cm-editor")!.className).toBe(lightEditorClasses);
+
+    const line = window.document.querySelector(".cm-content .cm-line")!;
+    line.textContent = "## Edited";
+    await waitFor(() => window.document.querySelector("#preview h2")?.textContent === "Edited");
+    expect(window.document.getElementById("save-status")!.getAttribute("data-save-state")).toBe(
+      "unsaved",
+    );
+    window.document.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true }),
+    );
+    await waitFor(
+      () =>
+        window.document.getElementById("save-status")!.getAttribute("data-save-state") === "saved",
+    );
+    expect(saved).toEqual([{ path: "later.md", content: "## Edited" }]);
+    window.dispatchEvent(new window.Event("pagehide"));
+    const session = JSON.parse(window.localStorage.getItem("localmd-session")!);
+    expect(session.cursor.line).toBe(0);
+    expect(session.cursor.ch).toBeGreaterThanOrEqual(0);
+    expect(typeof session.scroll).toBe("number");
   } finally {
     window.close();
   }
