@@ -47,7 +47,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.12",
+    "@biomejs/biome": "2.5.14",
     "@types/bun": "latest",
     "@types/jsdom": "^28.0.3",
     "jsdom": "^29.1.1",
